@@ -5,6 +5,7 @@ target/
 .kotlin
 .env
 run.sh
+logs/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

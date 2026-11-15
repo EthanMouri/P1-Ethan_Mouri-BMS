@@ -4,6 +4,8 @@ import com.revature.account.*;
 import com.revature.account.investment.InvestmentAccount;
 import com.revature.util.PasswordValidator;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.revature.customer.CustomerService;
 import com.revature.session.SessionManager;
@@ -34,6 +36,26 @@ import com.revature.customer.Customer;
  * Banking CLI!
  */
 public class App {
+    private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
+
+    /** Only expected business validation messages may reach the customer. */
+    static String customerSafeMessage(RuntimeException exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof SQLException) {
+                return "Something went wrong. Please try again.";
+            }
+            cause = cause.getCause();
+        }
+        String message = exception.getMessage();
+        if (message == null || message.isBlank() || message.length() > 180
+                || message.contains("\n") || message.contains("\r")
+                || message.matches("(?is).*(sql|jdbc|postgres|database|constraint|exception|stack trace|select |insert |update |delete |\\btable\\b|\\bcolumn\\b).*")) {
+            return "Something went wrong. Please try again.";
+        }
+        return message;
+    }
+
     private static final CustomerService customerService = new CustomerService();
     private static final AccountService accountService = new AccountService();
     private static final TransactionService transactionService = new TransactionService();
@@ -51,18 +73,9 @@ public class App {
             }
         }
         catch (IOException exception) {
-            System.err.println("Failed to connect to terminal: " + exception.getMessage());
+            LOGGER.error("Unable to initialize CLI terminal", exception);
+            System.err.println("Unable to start the terminal. Please try again.");
         }
-
-        //This connects to the database using JDBC.
-        // This specific code should be deleted as it was only a test
-        /*
-        try (Connection connection = DatabaseConnection.getConnection()) {
-            System.out.println("Successfully connected to PostgreSQL!");
-        } catch (SQLException e) {
-            System.err.println("Database connection failed: " + e.getMessage());
-        }
-        */
 
     }
 
@@ -161,6 +174,7 @@ public class App {
             }
         }
         catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Do not show internal database error details to the customer.
             System.out.println("Login could not be completed due to a database error.");
         }
@@ -191,10 +205,11 @@ public class App {
         }
         catch (IllegalArgumentException | IllegalStateException exception) {
             // Invalid registration information or duplicate customer
-            System.out.println("Registration failed: " + exception.getMessage());
+            System.out.println("Registration failed: " + customerSafeMessage(exception));
 
         }
         catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             // Database failure; don't expose internal SQL details to the user
             System.out.println("Registration could not be completed due to a database error.");
         }
@@ -287,8 +302,9 @@ public class App {
             }
             System.out.println("Closure requirements changed. Please review your accounts and try again.");
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            System.out.println("Your membership could not be closed: " + exception.getMessage());
+            System.out.println("Your membership could not be closed: " + customerSafeMessage(exception));
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             System.out.println("Unable to close your membership right now. Please try again later.");
         }
         return false;
@@ -369,7 +385,9 @@ public class App {
             } catch (NumberFormatException exception) {
                 //Handle input that is not a valid menu number.
                 System.out.println("That option isn't available. Please choose one from the menu.");
-            } catch (SQLException exception) {
+            }
+            catch (SQLException exception) {
+                LOGGER.error("Banking operation failed", exception);
                 //Return to the main menu if accounts cannot be retrieved.
                 System.out.println("Unable to load your accounts. Please try again later.");
                 return;
@@ -416,7 +434,9 @@ public class App {
 
                         //Return to the account list so the new account appears.
                         return;
-                    } catch (SQLException exception) {
+                    }
+                    catch (SQLException exception) {
+                        LOGGER.error("Banking operation failed", exception);
                         //Report a database error without closing the logged-in menu.
                         System.out.println("Unable to create Checking Account. Please try again.");
                     }
@@ -434,7 +454,9 @@ public class App {
 
                         //Return to the account list so the new account appears.
                         return;
-                    } catch (SQLException exception) {
+                    }
+                    catch (SQLException exception) {
+                        LOGGER.error("Banking operation failed", exception);
                         //Report a database error without closing the logged-in menu.
                         System.out.println("Unable to create Savings Account. Please try again.");
                     }
@@ -468,8 +490,10 @@ public class App {
                         System.out.println("Please enter a valid investment amount and term.");
                     } catch (IllegalArgumentException exception) {
                         //Display validation errors for invalid investment details.
-                        System.out.println(exception.getMessage());
-                    } catch (SQLException exception) {
+                        System.out.println(customerSafeMessage(exception));
+                    }
+                    catch (SQLException exception) {
+                        LOGGER.error("Banking operation failed", exception);
                         //Report database failures without leaving the logged-in menu.
                         System.out.println("Unable to create Investment Account. Please try again.");
                     }
@@ -503,8 +527,10 @@ public class App {
                         System.out.println("Please enter a valid loan amount and repayment period.");
                     } catch (IllegalArgumentException exception) {
                         //Display validation errors for invalid loan details.
-                        System.out.println(exception.getMessage());
-                    } catch (SQLException exception) {
+                        System.out.println(customerSafeMessage(exception));
+                    }
+                    catch (SQLException exception) {
+                        LOGGER.error("Banking operation failed", exception);
                         //Report database failures without leaving the logged-in menu.
                         System.out.println("Unable to create Loan Account. Please try again.");
                     }
@@ -718,10 +744,13 @@ public class App {
             //Retrieve the committed balance directly from PostgreSQL.
             BigDecimal updatedBalance = accountService.getAccountBalance(customer, account);
             System.out.println("Current Balance: $" + updatedBalance);
-        } catch (IllegalArgumentException | IllegalStateException exception) {
+        }
+        catch (IllegalArgumentException | IllegalStateException exception) {
             //Explain invalid deposits without exposing internal database details.
-            System.out.println("Deposit failed: " + exception.getMessage());
-        } catch (SQLException exception) {
+            System.out.println("Deposit failed: " + customerSafeMessage(exception));
+        }
+        catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Do not expose internal database errors to the customer.
             System.out.println("Unable to complete the deposit. Please try again later.");
         }
@@ -753,8 +782,9 @@ public class App {
             System.out.println("Current Balance: $" + updatedBalance);
         } catch (IllegalArgumentException | IllegalStateException exception) {
             //Explain invalid withdrawals without exposing internal database details.
-            System.out.println("Withdrawal failed: " + exception.getMessage());
+            System.out.println("Withdrawal failed: " + customerSafeMessage(exception));
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Do not expose internal database errors to the customer.
             System.out.println("Unable to complete the withdrawal. Please try again later.");
         }
@@ -849,8 +879,9 @@ public class App {
 
         } catch (IllegalArgumentException | IllegalStateException exception) {
             //Explain invalid transfer requests without exposing database details.
-            System.out.println("Transfer failed: " + exception.getMessage());
+            System.out.println("Transfer failed: " + customerSafeMessage(exception));
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Do not expose internal database errors to the customer.
             System.out.println("Unable to complete the transfer. Please try again later.");
         }
@@ -1004,11 +1035,12 @@ public class App {
         }
         catch (IllegalArgumentException | IllegalStateException exception) {
             //Explain invalid payments without exposing database internals.
-            System.out.println("Loan payment failed: " + exception.getMessage());
+            System.out.println("Loan payment failed: " + customerSafeMessage(exception));
             return false;
 
         }
         catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Keep internal database details hidden from the customer.
             System.out.println("Unable to complete the loan payment. Please try again later.");
             return false;
@@ -1163,10 +1195,11 @@ public class App {
 
         } catch (IllegalArgumentException | IllegalStateException exception) {
             //Explain invalid contributions without exposing database internals.
-            System.out.println("Investment contribution failed: " + exception.getMessage());
+            System.out.println("Investment contribution failed: " + customerSafeMessage(exception));
             return false;
 
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Keep internal database details hidden from the customer.
             System.out.println(
                     "Unable to complete the investment contribution. Please try again later.");
@@ -1267,9 +1300,10 @@ public class App {
                     accountService.getAccountBalance(customer, destination));
             return true;
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            System.out.println("Investment maturity payout failed: " + exception.getMessage());
+            System.out.println("Investment maturity payout failed: " + customerSafeMessage(exception));
             return false;
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             System.out.println("Unable to complete the maturity payout. Please try again later.");
             return false;
         }
@@ -1372,9 +1406,10 @@ public class App {
         } catch (IllegalArgumentException | IllegalStateException exception) {
             //Report invalid requests without exposing database internals.
             System.out.println("Unable to view transaction history: "
-                    + exception.getMessage());
+                    + customerSafeMessage(exception));
 
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             //Keep the account menu available if PostgreSQL cannot load the history.
             System.out.println(
                     "Unable to retrieve transaction history. Please try again later.");
@@ -1482,8 +1517,9 @@ public class App {
                     description.isEmpty() ? null : description);
             System.out.println("Payment sent successfully. Transaction ID: " + transactionId);
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            System.out.println("Unable to send cash: " + exception.getMessage());
+            System.out.println("Unable to send cash: " + customerSafeMessage(exception));
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             System.out.println("Payment was not completed. Please try again later.");
         }
     }
@@ -1499,8 +1535,9 @@ public class App {
                     description.isEmpty() ? null : description);
             System.out.println("Your payment request has been sent. Request ID: " + requestId);
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            System.out.println("Unable to request cash: " + exception.getMessage());
+            System.out.println("Unable to request cash: " + customerSafeMessage(exception));
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             System.out.println("Request was not created. Please try again later.");
         }
     }
@@ -1566,8 +1603,9 @@ public class App {
         } catch (NumberFormatException exception) {
             System.out.println("That option isn't available. Please choose one from the menu.");
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            System.out.println("Unable to process request: " + exception.getMessage());
+            System.out.println("Unable to process request: " + customerSafeMessage(exception));
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             System.out.println("Unable to process payment requests. Please try again later.");
         }
     }
@@ -1613,9 +1651,10 @@ public class App {
             System.out.println("Account #" + account.getAccountNumber() + " closed successfully.");
             return true;
         } catch (IllegalArgumentException exception) {
-            System.out.println("Account cannot be closed: " + exception.getMessage());
+            System.out.println("Account cannot be closed: " + customerSafeMessage(exception));
             return false;
         } catch (SQLException exception) {
+            LOGGER.error("Banking operation failed", exception);
             System.out.println("Account closure was not completed. Check that the account is active and has a zero balance.");
             return false;
         }
@@ -1673,6 +1712,7 @@ public class App {
                         }
 
                     } catch (SQLException exception) {
+                        LOGGER.error("Banking operation failed", exception);
                         //Report a database error without closing the account menu.
                         System.out.println("Unable to retrieve your account balance. Please try again.");
                     }
