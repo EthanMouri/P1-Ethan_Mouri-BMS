@@ -61,8 +61,9 @@ public class ZellePaymentDAO {
                 //This keeps customer locks ahead of request and account locks.
                 long requesterId;
                 BigDecimal amount;
+                String requestDescription;
                 try (PreparedStatement statement = connection.prepareStatement("""
-                        SELECT requester_customer_id, amount
+                        SELECT requester_customer_id, amount, description
                         FROM zelle_payment_requests
                         WHERE request_id = ? AND payer_customer_id = ? AND status = 'PENDING'
                         """)) {
@@ -74,6 +75,7 @@ public class ZellePaymentDAO {
                         }
                         requesterId = results.getLong("requester_customer_id");
                         amount = results.getBigDecimal("amount");
+                        requestDescription = results.getString("description");
                     }
                 }
                 if (requesterId <= 0 || requesterId == payerCustomerId || amount == null
@@ -98,7 +100,7 @@ public class ZellePaymentDAO {
 
                 //Lock and recheck the request after obtaining customer locks.
                 try (PreparedStatement statement = connection.prepareStatement("""
-                        SELECT requester_customer_id, amount
+                        SELECT requester_customer_id, amount, description
                         FROM zelle_payment_requests
                         WHERE request_id = ? AND payer_customer_id = ? AND status = 'PENDING'
                         FOR UPDATE
@@ -191,7 +193,8 @@ public class ZellePaymentDAO {
                     statement.setLong(1, fundingAccountId);
                     statement.setLong(2, destinationId);
                     statement.setBigDecimal(3, amount);
-                    statement.setString(4, "Zelle payment request #" + requestId);
+                    statement.setString(4, requestDescription == null || requestDescription.isBlank()
+                            ? "Zelle payment request #" + requestId : requestDescription);
                     statement.setBigDecimal(5, newSourceBalance);
                     statement.setBigDecimal(6, newDestinationBalance);
                     try (ResultSet results = statement.executeQuery()) {

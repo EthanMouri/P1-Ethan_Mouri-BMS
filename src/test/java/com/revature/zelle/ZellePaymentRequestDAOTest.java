@@ -166,12 +166,14 @@ public class ZellePaymentRequestDAOTest {
         when(results.getLong("payer_customer_id")).thenReturn(2L);
         when(results.getBigDecimal("amount")).thenReturn(new BigDecimal("25.00"));
         when(results.getString("status")).thenReturn("PENDING");
+        when(results.getString("requester_username")).thenReturn("Jane_Doe");
         ZellePaymentRequestDAO dao = new ZellePaymentRequestDAO(() -> connection);
         List<ZellePaymentRequest> requests = dao.findPendingRequestsForPayer(2L);
         assertEquals(1, requests.size());
         assertEquals(17L, requests.get(0).requestId());
         assertEquals(new BigDecimal("25.00"), requests.get(0).amount());
         assertEquals("PENDING", requests.get(0).status());
+        assertEquals("Jane_Doe", requests.get(0).requesterUsername());
     }
 
     @Test

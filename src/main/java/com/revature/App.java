@@ -1554,7 +1554,9 @@ public class App {
             printSection("View Payment Requests");
             for (ZellePaymentRequest request : requests) {
                 System.out.println("Request #" + request.requestId() + " | $" + request.amount()
-                        + " | From customer ID " + request.requesterCustomerId()
+                        + " | From " + (request.requesterUsername() == null || request.requesterUsername().isBlank()
+                                ? "customer ID " + request.requesterCustomerId()
+                                : request.requesterUsername())
                         + " | " + (request.description() == null ? "No description" : request.description()));
             }
             String input = reader.readLine("Request ID to respond to (or Enter to go back): ").trim();

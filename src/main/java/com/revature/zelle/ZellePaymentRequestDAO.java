@@ -113,12 +113,14 @@ public class ZellePaymentRequestDAO {
             throw new IllegalArgumentException("A valid customer ID is required.");
         }
         String sqlQuery = """
-                SELECT request_id, requester_customer_id, payer_customer_id,
-                       amount, description, status, funding_account_id,
-                       payment_transaction_id, created_at, updated_at, resolved_at
-                FROM zelle_payment_requests
-                WHERE payer_customer_id = ? AND status = 'PENDING'
-                ORDER BY created_at, request_id
+                SELECT r.request_id, r.requester_customer_id, r.payer_customer_id,
+                       r.amount, r.description, r.status, r.funding_account_id,
+                       r.payment_transaction_id, r.created_at, r.updated_at, r.resolved_at,
+                       c.username AS requester_username
+                FROM zelle_payment_requests r
+                JOIN customers c ON c.customer_id = r.requester_customer_id
+                WHERE r.payer_customer_id = ? AND r.status = 'PENDING'
+                ORDER BY r.created_at, r.request_id
                 """;
         List<ZellePaymentRequest> requests = new ArrayList<>();
         try (Connection connection = connectionProvider.getConnection();
@@ -140,12 +142,14 @@ public class ZellePaymentRequestDAO {
             throw new IllegalArgumentException("Valid request and customer IDs are required.");
         }
         String sqlQuery = """
-                SELECT request_id, requester_customer_id, payer_customer_id,
-                       amount, description, status, funding_account_id,
-                       payment_transaction_id, created_at, updated_at, resolved_at
-                FROM zelle_payment_requests
-                WHERE request_id = ?
-                  AND (requester_customer_id = ? OR payer_customer_id = ?)
+                SELECT r.request_id, r.requester_customer_id, r.payer_customer_id,
+                       r.amount, r.description, r.status, r.funding_account_id,
+                       r.payment_transaction_id, r.created_at, r.updated_at, r.resolved_at,
+                       c.username AS requester_username
+                FROM zelle_payment_requests r
+                JOIN customers c ON c.customer_id = r.requester_customer_id
+                WHERE r.request_id = ?
+                  AND (r.requester_customer_id = ? OR r.payer_customer_id = ?)
                 """;
         try (Connection connection = connectionProvider.getConnection();
              PreparedStatement statement = connection.prepareStatement(sqlQuery)) {
@@ -204,6 +208,7 @@ public class ZellePaymentRequestDAO {
                 (Long) results.getObject("payment_transaction_id", Long.class),
                 results.getObject("created_at", java.time.OffsetDateTime.class),
                 results.getObject("updated_at", java.time.OffsetDateTime.class),
-                results.getObject("resolved_at", java.time.OffsetDateTime.class));
+                results.getObject("resolved_at", java.time.OffsetDateTime.class),
+                results.getString("requester_username"));
     }
 }

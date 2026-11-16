@@ -129,6 +129,7 @@ public class ZellePaymentDAOTest {
         when(requestRows.next()).thenReturn(true, true);
         when(requestRows.getLong("requester_customer_id")).thenReturn(1L);
         when(requestRows.getBigDecimal("amount")).thenReturn(new BigDecimal("5.00"));
+        when(requestRows.getString("description")).thenReturn("Grocery Bill");
         when(destinationRows.next()).thenReturn(true);
         when(destinationRows.getLong("account_id")).thenReturn(3L);
         when(accountRows.next()).thenReturn(true, true, false);
@@ -184,6 +185,7 @@ public class ZellePaymentDAOTest {
         when(requestRows.next()).thenReturn(true, true);
         when(requestRows.getLong("requester_customer_id")).thenReturn(1L);
         when(requestRows.getBigDecimal("amount")).thenReturn(new BigDecimal("5.00"));
+        when(requestRows.getString("description")).thenReturn("Grocery Bill");
         when(destinationRows.next()).thenReturn(true);
         when(destinationRows.getLong("account_id")).thenReturn(3L);
         when(accountRows.next()).thenReturn(true, true, false);
@@ -202,6 +204,7 @@ public class ZellePaymentDAOTest {
         assertEquals(77L, new ZellePaymentDAO(() -> connection).approveRequest(10, 2, 5));
         verify(balance, times(2)).executeUpdate();
         verify(transaction).setBigDecimal(3, new BigDecimal("5.00"));
+        verify(transaction).setString(4, "Grocery Bill");
         verify(connection).commit();
         verify(connection, never()).rollback();
         verify(connection).setAutoCommit(true);
@@ -226,6 +229,7 @@ public class ZellePaymentDAOTest {
         when(requestRows.next()).thenReturn(true);
         when(requestRows.getLong("requester_customer_id")).thenReturn(1L);
         when(requestRows.getBigDecimal("amount")).thenReturn(new BigDecimal("5.00"));
+        when(requestRows.getString("description")).thenReturn("Grocery Bill");
         when(customers.executeQuery()).thenReturn(customerRows);
         when(customerRows.next()).thenReturn(true);
         when(customerRows.getString("status")).thenReturn("CLOSED");
@@ -256,6 +260,7 @@ public class ZellePaymentDAOTest {
         when(requestRows.next()).thenReturn(true, false);
         when(requestRows.getLong("requester_customer_id")).thenReturn(9L);
         when(requestRows.getBigDecimal("amount")).thenReturn(new BigDecimal("5.00"));
+        when(requestRows.getString("description")).thenReturn("Grocery Bill");
         when(customers.executeQuery()).thenReturn(customerRows);
         when(customerRows.next()).thenReturn(true);
         when(customerRows.getString("status")).thenReturn("ACTIVE");
